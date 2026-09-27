@@ -36,7 +36,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SECRET_KEY'] = 'gtu-prep-secret-key-replace-in-prod'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-dev-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(basedir, 'gtu_prep.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
