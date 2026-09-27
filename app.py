@@ -977,8 +977,9 @@ def seed_gtu_data():
     db.session.bulk_save_objects(topics_it)
     db.session.commit()
 
-if __name__ == '__main__':
-    with app.app_context():
+with app.app_context():
         db.create_all()
         seed_gtu_data()
+
+if __name__ == '__main__':
     app.run(debug=True)
