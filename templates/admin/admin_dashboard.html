@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Admin Panel - GTU Subjects</h2>
+  <a href="{{ url_for('admin_add_subject') }}" class="btn btn-success">+ Add New Subject</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>Code</th>
+          <th>Subject Name</th>
+          <th>Department</th>
+          <th>Sem</th>
+          <th>Units</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in subjects %}
+        <tr>
+          <td><span class="badge bg-secondary">{{ s.code }}</span></td>
+          <td class="fw-bold">{{ s.name }}</td>
+          <td>{{ s.department }}</td>
+          <td>Sem {{ s.semester }}</td>
+          <td>{{ s.topics|length }}</td>
+          <td>
+            <a href="{{ url_for('admin_manage_subject', subject_id=s.id) }}" class="btn btn-sm btn-primary">
+              Manage Units & PDFs
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="text-center p-3 text-muted">No subjects in database.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

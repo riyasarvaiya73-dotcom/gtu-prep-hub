@@ -1,0 +1,563 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Include marked.js for Markdown parsing -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<style>
+  .hero-card {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+    border-radius: 14px;
+  }
+  .sticky-sidebar {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 1.5rem;
+  }
+  .unit-item {
+    transition: all 0.2s ease-in-out;
+    border-radius: 8px;
+  }
+  .unit-item:hover {
+    background-color: #f8f9fa;
+  }
+  #modalAnswerText pre {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+  }
+  #modalAnswerText h1, #modalAnswerText h2, #modalAnswerText h3 {
+    margin-top: 1rem;
+    font-weight: 700;
+    color: #0d6efd;
+  }
+</style>
+
+<div class="container-fluid px-lg-5 my-4">
+
+  <!-- Navigation Bar -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+      &larr; Back to Subjects
+    </a>
+    <span class="badge bg-light text-secondary border px-3 py-2">
+      GTU Subject Portal
+    </span>
+  </div>
+
+  <!-- Subject Hero Banner -->
+  <div class="card border-0 shadow-sm hero-card text-white mb-4 p-4">
+    <div class="row align-items-center g-3">
+      <div class="col-lg-7">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge bg-warning text-dark fw-bold px-2 py-1">GTU Code: {{ subject.code }}</span>
+          <span class="badge bg-white text-dark">Semester {{ subject.semester }}</span>
+        </div>
+        <h2 class="fw-bold mb-1">{{ subject.name }}</h2>
+        <p class="text-white-50 small mb-0">Track completed units, practice with past exam papers, and consult the AI tutor for 70-mark theory success.</p>
+      </div>
+
+      <!-- Readiness Quick Stats -->
+      <div class="col-lg-5">
+        <div class="bg-white text-dark rounded-4 p-3 shadow-sm">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small fw-bold text-muted text-uppercase">Exam Readiness</span>
+            <span class="fs-5 fw-bold text-primary">{{ readiness }}%</span>
+          </div>
+          <div class="progress mb-2" style="height: 8px; border-radius: 10px;">
+            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ readiness }}%;" aria-valuenow="{{ readiness }}" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+          <div class="d-flex justify-content-between small text-muted">
+            <span>{{ prediction_status }}</span>
+            {% if subject.exam_date %}
+              <span class="fw-semibold text-danger">⏳ {{ days_left }} Days Left</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main 2-Column Balanced Grid -->
+  <div class="row g-4">
+
+    <!-- ================= LEFT COLUMN: SYLLABUS & RESOURCES (7 COLS) ================= -->
+    <div class="col-lg-7">
+
+      <!-- 1. Syllabus & Units Tracker -->
+      <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-white border-0 pt-3 pb-2 d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="fw-bold mb-0 text-dark">📋 GTU Syllabus Units</h6>
+            <small class="text-muted">Check off completed modules to update your preparation score</small>
+          </div>
+          <span class="badge bg-light text-primary border">{{ topics|length }} Modules</span>
+        </div>
+        <div class="card-body pt-1">
+          {% if topics %}
+            <div class="list-group list-group-flush">
+              {% for topic in topics %}
+              <div class="list-group-item unit-item d-flex justify-content-between align-items-center px-2 py-2 border-0 mb-1">
+                <div class="form-check d-flex align-items-center gap-2">
+                  <input 
+                    class="form-check-input topic-checkbox fs-6" 
+                    type="checkbox" 
+                    data-topic-id="{{ topic.id }}"
+                    id="topic-{{ topic.id }}"
+                    {% if topic.id in completed_ids %}checked{% endif %}
+                  >
+                  <label class="form-check-label fw-semibold text-dark cursor-pointer" for="topic-{{ topic.id }}">
+                    Unit {{ topic.unit_no }}: {{ topic.title }}
+                  </label>
+                </div>
+                <span class="badge bg-light text-dark border px-2 py-1">{{ topic.weightage }}% Marks</span>
+              </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted small my-3 text-center">No syllabus units found. Upload the syllabus PDF in Admin to populate modules.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 2. Official GTU Past Papers & Mock Exams -->
+      <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-white border-0 pt-3 pb-2 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold mb-0 text-dark">📑 Official Question Papers & Mock Tests</h6>
+          <span class="badge bg-primary px-2 py-1">{{ subject.exam_papers|length }} Papers</span>
+        </div>
+        <div class="card-body p-0">
+          {% if subject.exam_papers %}
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr class="small text-muted text-uppercase">
+                    <th class="ps-3">Exam Session</th>
+                    <th>Date Added</th>
+                    <th class="text-end pe-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in subject.exam_papers %}
+                  <tr>
+                    <td class="ps-3 fw-semibold text-dark">GTU {{ p.session_name }}</td>
+                    <td class="text-muted small">{{ p.uploaded_at.strftime('%b %d, %Y') }}</td>
+                    <td class="text-end pe-3">
+                      <a href="{{ url_for('download_paper', paper_id=p.id) }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 me-1">
+                        📥 Download PDF
+                      </a>
+                      {% if p.paper_json %}
+                      <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold" onclick="startMockExam({{ p.id }})">
+                        ⏱️ Take Mock (70M)
+                      </button>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="p-4 text-center text-muted small">No past question papers uploaded for this subject yet.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 3. Study Materials & Notes Card -->
+      <div class="row g-3 mb-4">
+        <!-- Study Material Downloads -->
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-0 pt-3 pb-1 fw-bold text-dark">
+              📚 Study Material
+            </div>
+            <div class="card-body pt-1">
+              {% if resources %}
+                <div class="list-group list-group-flush">
+                  {% for res in resources %}
+                  <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+                    <span class="small fw-semibold text-truncate me-2">{{ res.title }}</span>
+                    <a href="{{ res.link }}" class="btn btn-outline-primary btn-sm rounded-pill py-0 px-2" target="_blank">PDF</a>
+                  </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <p class="text-muted small mb-0">No lecture notes uploaded yet.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Personal Revision Notes -->
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-0 pt-3 pb-1 d-flex justify-content-between align-items-center">
+              <span class="fw-bold text-dark">📝 Quick Notes</span>
+              {% if user_note and user_note.updated_at %}
+                <small class="text-muted" style="font-size: 0.75rem;">{{ user_note.updated_at.strftime('%d %b') }}</small>
+              {% endif %}
+            </div>
+            <div class="card-body pt-1">
+              <form action="{{ url_for('save_student_note', subject_id=subject.id) }}" method="POST">
+                <textarea 
+                  name="note_content" 
+                  rows="3" 
+                  class="form-control form-control-sm mb-2 rounded-3" 
+                  placeholder="Record recurring formulas or viva reminders..."
+                >{{ user_note.content if user_note else '' }}</textarea>
+                <button type="submit" class="btn btn-dark btn-sm rounded-pill w-100">Save Note</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= RIGHT COLUMN: INTERACTIVE TOOLS & AI (5 COLS) ================= -->
+    <div class="col-lg-5">
+      <div class="sticky-sidebar">
+
+        <!-- 1. GTU AI Exam Assistant -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4 border-top border-4 border-info">
+          <div class="card-header bg-white border-0 pt-3 pb-1 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <span class="fs-5">🤖</span>
+              <span class="fw-bold text-dark">GTU AI Exam Assistant</span>
+            </div>
+            <span class="badge bg-info text-dark rounded-pill px-2">Gemini 3.6</span>
+          </div>
+          <div class="card-body">
+            <p class="text-muted small mb-3">Ask any syllabus question to generate answers structured strictly for GTU paper checkers (with diagrams, definitions, and marks criteria).</p>
+            
+            <div class="mb-2">
+              <label class="form-label small fw-bold text-muted mb-1">Your Exam Question</label>
+              <input type="text" id="aiQuestionInput" class="form-control rounded-3" placeholder="e.g., Explain Dijkstra's algorithm with example">
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-7">
+                <label class="form-label small fw-bold text-muted mb-1">GTU Question Weightage</label>
+                <select id="aiMarksSelect" class="form-select rounded-3">
+                  <option value="3">3 Marks (Concise)</option>
+                  <option value="4">4 Marks (Detailed)</option>
+                  <option value="7" selected>7 Marks (Comprehensive)</option>
+                </select>
+              </div>
+              <div class="col-5 d-flex align-items-end">
+                <button type="button" id="askAiBtn" class="btn btn-info text-dark fw-bold w-100 rounded-3">
+                  Generate
+                </button>
+              </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="aiLoading" class="text-center my-3 d-none">
+              <div class="spinner-border spinner-border-sm text-info" role="status"></div>
+              <span class="small text-muted ms-2">Structuring model answer according to GTU rubrics...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. GTU 70-Mark Target Predictor -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4 border-top border-4 border-warning">
+          <div class="card-header bg-white border-0 pt-3 pb-1 fw-bold text-dark d-flex align-items-center gap-2">
+            <span class="fs-5">🎯</span> 70-Mark Target Predictor
+          </div>
+          <div class="card-body">
+            <p class="text-muted small mb-3">Enter your internal scores to calculate the exact marks needed on the 70-mark external paper.</p>
+            
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small text-muted mb-1">Mid-Sem (/30)</label>
+                <input type="number" id="predMid" class="form-control form-control-sm rounded-3" placeholder="e.g. 20" min="0" max="30">
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted mb-1">Internal/Viva (/50)</label>
+                <input type="number" id="predInternal" class="form-control form-control-sm rounded-3" placeholder="e.g. 40" min="0" max="50">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small text-muted mb-1">Desired Grade / SPI Target</label>
+              <select id="predGoal" class="form-select form-select-sm rounded-3">
+                <option value="pass">Just Pass / Clear Paper (Passing Grade)</option>
+                <option value="8spi" selected>Target 8+ SPI (AB/BB Grade ~75%)</option>
+                <option value="9spi">Target 9+ SPI (AA Grade ~85%+)</option>
+              </select>
+            </div>
+
+            <button type="button" id="calcTargetBtn" class="btn btn-warning w-100 fw-bold text-dark btn-sm rounded-3">
+              Calculate External Target
+            </button>
+
+            <!-- Results Output Box -->
+            <div id="targetResultBox" class="mt-3 p-3 rounded-4 border bg-light d-none">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-bold text-dark">Needed in 70-Mark External:</span>
+                <span id="targetMarksValue" class="badge fs-6 bg-primary">0 / 70</span>
+              </div>
+              <div class="small text-muted" id="targetAdviceText"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================= AI ANSWER MODAL ================= -->
+<div class="modal fade" id="aiAnswerModal" tabindex="-1" aria-labelledby="aiModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header bg-light border-0">
+        <h5 class="modal-title fw-bold text-dark" id="aiModalTitle">🤖 GTU Model Answer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 bg-white">
+        <div id="modalAnswerText" class="text-dark"></div>
+      </div>
+      <div class="modal-footer bg-light border-0">
+        <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary rounded-pill px-3" onclick="copyModalAnswer()">Copy to Clipboard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FULLSCREEN MOCK EXAM MODAL ================= -->
+<div class="modal fade" id="mockExamEngineModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="modal-title fw-bold mb-0" id="mockTitle">GTU Mock Exam Simulation</h5>
+          <span class="small text-secondary" id="mockSubtitle"></span>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <span class="badge bg-danger fs-6 px-3 py-2 rounded-pill" id="examTimer">⏱️ 02:30:00</span>
+          <button type="button" class="btn btn-outline-light btn-sm rounded-pill" onclick="window.print()">🖨️ Print Exam</button>
+          <button type="button" class="btn btn-danger btn-sm rounded-pill px-3" data-bs-dismiss="modal">Exit Exam</button>
+        </div>
+      </div>
+      <div class="modal-body p-4" id="mockExamBody">
+        <!-- Rendered exam questions go here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Checkbox toggle
+document.querySelectorAll('.topic-checkbox').forEach(box => {
+  box.addEventListener('change', async (e) => {
+    const topicId = e.target.getAttribute('data-topic-id');
+    await fetch('/api/toggle-topic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic_id: topicId })
+    });
+    window.location.reload();
+  });
+});
+
+// AI Modal generation
+const askBtn = document.getElementById('askAiBtn');
+if (askBtn) {
+  askBtn.addEventListener('click', async () => {
+    const question = document.getElementById('aiQuestionInput').value.trim();
+    const marks = document.getElementById('aiMarksSelect').value;
+    const loading = document.getElementById('aiLoading');
+    const modalAnswerText = document.getElementById('modalAnswerText');
+
+    if (!question) {
+      alert("Please enter a question.");
+      return;
+    }
+
+    loading.classList.remove('d-none');
+    askBtn.disabled = true;
+
+    try {
+      const response = await fetch('/api/gtu-ai-tutor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: question,
+          marks: marks,
+          subject_name: "{{ subject.name }}",
+          subject_id: {{ subject.id }}
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        modalAnswerText.innerHTML = marked.parse(data.answer);
+        const modalElement = document.getElementById('aiAnswerModal');
+        const answerModal = new bootstrap.Modal(modalElement);
+        answerModal.show();
+      } else {
+        alert(data.error || "Failed to generate answer.");
+      }
+    } catch (err) {
+      alert("Error contacting AI server: " + err);
+    } finally {
+      loading.classList.add('d-none');
+      askBtn.disabled = false;
+    }
+  });
+}
+
+function copyModalAnswer() {
+  const text = document.getElementById('modalAnswerText').innerText;
+  navigator.clipboard.writeText(text);
+  alert("Answer copied to clipboard!");
+}
+
+// GTU 70-Mark Target Calculation Logic
+const calcBtn = document.getElementById('calcTargetBtn');
+if (calcBtn) {
+  calcBtn.addEventListener('click', () => {
+    const mid = parseFloat(document.getElementById('predMid').value);
+    const internal = parseFloat(document.getElementById('predInternal').value);
+    const goal = document.getElementById('predGoal').value;
+    const resultBox = document.getElementById('targetResultBox');
+    const marksValue = document.getElementById('targetMarksValue');
+    const adviceText = document.getElementById('targetAdviceText');
+
+    if (isNaN(mid) || isNaN(internal)) {
+      alert("Please enter both Mid-Sem and Internal marks.");
+      return;
+    }
+
+    if (mid < 0 || mid > 30 || internal < 0 || internal > 50) {
+      alert("Mid-sem must be 0-30 and Internal must be 0-50.");
+      return;
+    }
+
+    const currentTotal = mid + internal;
+    let requiredExternal = 23;
+    let targetAggregate = 75;
+
+    if (goal === 'pass') {
+      targetAggregate = 75;
+      requiredExternal = Math.max(23, targetAggregate - currentTotal);
+    } else if (goal === '8spi') {
+      targetAggregate = 112;
+      requiredExternal = Math.max(23, targetAggregate - currentTotal);
+    } else if (goal === '9spi') {
+      targetAggregate = 128;
+      requiredExternal = Math.max(23, targetAggregate - currentTotal);
+    }
+
+    resultBox.classList.remove('d-none');
+
+    if (requiredExternal > 70) {
+      marksValue.className = "badge fs-6 bg-danger";
+      marksValue.innerText = "Math Impossible";
+      adviceText.innerHTML = `You need <strong>${requiredExternal}</strong> marks, but the GTU paper is only 70 marks. Select a lower target tier.`;
+    } else {
+      marksValue.className = requiredExternal <= 35 ? "badge fs-6 bg-success" : "badge fs-6 bg-warning text-dark";
+      marksValue.innerText = `${Math.ceil(requiredExternal)} / 70`;
+
+      if (requiredExternal === 23) {
+        adviceText.innerHTML = `Your internals are strong! You only need the mandatory GTU minimum passing mark of <strong>23/70</strong>.`;
+      } else {
+        adviceText.innerHTML = `Score at least <strong>${Math.ceil(requiredExternal)}</strong> out of 70 in external theory to hit your goal.`;
+      }
+    }
+  });
+}
+
+// Mock Exam Engine Runner
+let examInterval = null;
+
+async function startMockExam(paperId) {
+  try {
+    const res = await fetch(`/api/mock-paper/${paperId}`);
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || 'Failed to load test.');
+      return;
+    }
+
+    document.getElementById('mockTitle').innerText = `GTU ${data.session_name} — 70 Marks Examination`;
+    document.getElementById('mockSubtitle').innerText = `${data.subject_name} (${data.subject_code})`;
+
+    const body = document.getElementById('mockExamBody');
+    body.innerHTML = '';
+
+    data.questions.forEach((q) => {
+      let card = `
+        <div class="card mb-4 border rounded-3">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+            <span class="fw-bold">${q.q_no}</span>
+            <span class="badge bg-dark">${q.total_marks} Marks</span>
+          </div>
+          <div class="card-body">
+            <table class="table table-borderless table-sm mb-0">
+              <tbody>
+      `;
+
+      q.parts.forEach((p) => {
+        card += `
+          <tr>
+            <td style="width: 5%;" class="fw-bold text-muted">${p.sub}</td>
+            <td style="width: 85%;">${p.text}</td>
+            <td style="width: 10%;" class="text-end fw-bold text-dark">[${p.marks}M]</td>
+          </tr>
+        `;
+      });
+
+      if (q.or_parts && q.or_parts.length > 0) {
+        card += `
+          <tr><td colspan="3" class="text-center py-2"><span class="badge bg-secondary px-3 py-1">OR</span></td></tr>
+        `;
+        q.or_parts.forEach((p) => {
+          card += `
+            <tr>
+              <td style="width: 5%;" class="fw-bold text-muted">${p.sub}</td>
+              <td style="width: 85%;">${p.text}</td>
+              <td style="width: 10%;" class="text-end fw-bold text-dark">[${p.marks}M]</td>
+            </tr>
+          `;
+        });
+      }
+
+      card += `</tbody></table></div></div>`;
+      body.innerHTML += card;
+    });
+
+    let totalSeconds = 150 * 60;
+    const timerElem = document.getElementById('examTimer');
+    clearInterval(examInterval);
+
+    examInterval = setInterval(() => {
+      const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const secs = String(totalSeconds % 60).padStart(2, '0');
+      timerElem.innerText = `⏱️ ${hrs}:${mins}:${secs}`;
+
+      if (totalSeconds <= 0) {
+        clearInterval(examInterval);
+        alert('Time is up! The 2.5-hour GTU exam session has ended.');
+      }
+      totalSeconds--;
+    }, 1000);
+
+    const modal = new bootstrap.Modal(document.getElementById('mockExamEngineModal'));
+    modal.show();
+
+  } catch (err) {
+    alert('Error loading exam: ' + err.message);
+  }
+}
+</script>
+{% endblock %}

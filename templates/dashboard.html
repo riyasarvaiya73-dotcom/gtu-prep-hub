@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- Filtering Form -->
+<div class="card shadow-sm p-3 mb-4">
+  <form method="GET" action="{{ url_for('dashboard') }}" class="row g-3 align-items-end">
+    <div class="col-md-5">
+      <label class="form-label fw-bold">Department</label>
+      <select name="department" class="form-select">
+        <option value="Computer Engineering" {% if selected_dept == 'Computer Engineering' %}selected{% endif %}>
+          Computer Engineering
+        </option>
+        <option value="Information Technology" {% if selected_dept == 'Information Technology' %}selected{% endif %}>
+          Information Technology
+        </option>
+        <option value="Mechanical Engineering" {% if selected_dept == 'Mechanical Engineering' %}selected{% endif %}>
+          Mechanical Engineering
+        </option>
+      </select>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label fw-bold">Semester</label>
+      <select name="semester" class="form-select">
+        {% for s in range(1, 9) %}
+          <option value="{{ s }}" {% if selected_sem == s %}selected{% endif %}>
+            Semester {{ s }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <button type="submit" class="btn btn-primary w-100">Filter Subjects</button>
+    </div>
+  </form>
+</div>
+
+<!-- Subjects Section Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4>Showing Subjects for: <span class="text-primary">{{ selected_dept }} (Sem {{ selected_sem }})</span></h4>
+  <span class="badge bg-secondary">{{ subjects|length }} Found</span>
+</div>
+
+<!-- Subject Cards Grid -->
+<div class="row">
+  {% for subject in subjects %}
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm h-100 border-start border-4 border-primary">
+        <div class="card-body d-flex flex-column">
+          <span class="badge bg-secondary mb-2 w-auto align-self-start">{{ subject.code }}</span>
+          <h5 class="card-title">{{ subject.name }}</h5>
+          <p class="text-muted small">Units: {{ subject.topics|length }} Modules</p>
+          <a href="{{ url_for('subject_detail', subject_id=subject.id) }}" class="btn btn-outline-primary mt-auto">
+            Evaluate Preparation & Notes &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="col-12">
+      <div class="alert alert-warning">
+        No subjects found for <strong>{{ selected_dept }}</strong>, <strong>Semester {{ selected_sem }}</strong> yet.
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

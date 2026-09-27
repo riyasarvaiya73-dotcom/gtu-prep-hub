@@ -1,0 +1,372 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+  .admin-hero-card {
+    background: linear-gradient(135deg, #212529 0%, #343a40 100%);
+    border-radius: 14px;
+  }
+  .unit-table-row {
+    transition: background-color 0.15s ease-in-out;
+  }
+  .unit-table-row:hover {
+    background-color: #f8f9fa;
+  }
+</style>
+
+<div class="container my-4">
+
+  <!-- Top Navigation & Return Link -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+      &larr; Back to Admin Console
+   </a>
+    <span class="badge bg-light text-secondary border px-3 py-2">
+      Syllabus & Exam Control Engine
+    </span>
+  </div>
+
+  <!-- Subject Hero Banner -->
+  <div class="card border-0 shadow-sm admin-hero-card text-white mb-4 p-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge bg-warning text-dark fw-bold px-2 py-1">GTU Code: {{ subject.code }}</span>
+          <span class="badge bg-secondary">Semester {{ subject.semester }}</span>
+          <span class="badge bg-dark border border-secondary">{{ subject.department }}</span>
+        </div>
+        <h3 class="fw-bold mb-1">{{ subject.name }}</h3>
+        <p class="text-white-50 small mb-0">Manage course modules, fine-tune exam weightages, and attach past papers for mock tests.</p>
+      </div>
+      <div>
+        <span class="badge bg-primary fs-6 px-3 py-2 rounded-pill">
+          {{ subject.topics|length }} Units Active
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ingestion Tools Row (2 Cards) -->
+  <div class="row g-4 mb-4">
+    
+    <!-- Tool 1: AI Syllabus PDF Extractor -->
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-header bg-white border-0 pt-3 pb-1 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold text-dark mb-0">🤖 Ingest Syllabus via Gemini AI</h6>
+          <span class="badge bg-info text-dark rounded-pill">PDF Parser</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">Upload an official GTU syllabus PDF. Gemini will extract unit numbers, titles, and weightage percentages automatically.</p>
+          <form action="{{ url_for('parse_syllabus_pdf', subject_id=subject.id) }}" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+              <input type="file" name="syllabus_pdf" class="form-control rounded-3 form-control-sm" accept=".pdf" required>
+            </div>
+            <button type="submit" class="btn btn-dark btn-sm rounded-pill w-100 fw-semibold">
+              Extract Units from PDF
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tool 2: Past Year Exam Paper Uploader -->
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-header bg-white border-0 pt-3 pb-1 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold text-dark mb-0">📑 Upload GTU Past Exam Paper</h6>
+          <span class="badge bg-primary text-white rounded-pill">PYQ Hub</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-2">Upload GTU exam papers for direct PDF downloads and the 70-mark mock test simulator.</p>
+          <form action="{{ url_for('admin_upload_pyq_paper', subject_id=subject.id) }}" method="POST" enctype="multipart/form-data">
+            <div class="row g-2 mb-2">
+              <div class="col-7">
+                <input type="text" name="session_name" class="form-control form-control-sm rounded-3" placeholder="e.g. Winter 2023, Summer 2024" required>
+              </div>
+              <div class="col-5">
+                <input type="file" name="paper_pdf" class="form-control form-control-sm rounded-3" accept=".pdf" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill w-100 fw-semibold">
+              Upload Exam Paper
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Tool 3: Upload Study Material / Lecture Notes -->
+    <div class="col-lg-12">
+      <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-white border-0 pt-3 pb-1 d-flex justify-content-between align-items-center">
+          <h6 class="fw-bold text-dark mb-0">📖 Upload Subject Study Material & Notes</h6>
+          <span class="badge bg-success text-white rounded-pill">Resource Hub</span>
+        </div>
+        <div class="card-body">
+          <form action="{{ url_for('admin_manage_subject', subject_id=subject.id) }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="action_type" value="add_resource">
+            <div class="row g-3 align-items-center">
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Category</label>
+                <select name="category" class="form-select form-select-sm rounded-3">
+                  <option value="Notes">Lecture Notes</option>
+                  <option value="Formula">Formula Sheet</option>
+                  <option value="Slides">Presentation Slides</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Material Title</label>
+                <input type="text" name="title" class="form-control form-control-sm rounded-3" placeholder="e.g. Unit 1 to 3 Comprehensive Notes" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">PDF File</label>
+                <input type="file" name="file" class="form-control form-control-sm rounded-3" accept=".pdf" required>
+              </div>
+              <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-success btn-sm w-100 rounded-3 fw-semibold mt-2">
+                  Upload PDF
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Uploaded Study Materials Table -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-3 pb-2">
+      <h6 class="fw-bold mb-0 text-dark">📂 Uploaded Study Materials ({{ subject.resources|length }})</h6>
+    </div>
+    <div class="card-body p-0">
+      {% if subject.resources %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase text-muted">
+              <tr>
+                <th class="ps-3">Category</th>
+                <th>Title</th>
+                <th class="text-end pe-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for res in subject.resources %}
+              <tr>
+                <td class="ps-3"><span class="badge bg-secondary">{{ res.category }}</span></td>
+                <td class="fw-semibold text-dark">{{ res.title }}</td>
+                <td class="text-end pe-3">
+                  <a href="{{ res.link }}" target="_blank" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-0">
+                    View PDF
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted small">No study materials uploaded yet for this subject.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Syllabus Modules Table (Full CRUD) -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-3 pb-2 d-flex justify-content-between align-items-center">
+      <div>
+        <h6 class="fw-bold mb-0 text-dark">📋 Configured Syllabus Units</h6>
+        <small class="text-muted">Edit names, re-balance weights, or remove erroneous units</small>
+      </div>
+      <button type="button" class="btn btn-dark btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addManualUnitModal">
+        + Add Unit Manually
+      </button>
+    </div>
+
+    <div class="card-body p-0">
+      {% if subject.topics %}
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead class="table-light small text-uppercase text-muted">
+              <tr>
+                <th style="width: 12%;" class="ps-3">Unit</th>
+                <th style="width: 53%;">Topic Title / Syllabus Scope</th>
+                <th style="width: 15%;">Weightage</th>
+                <th style="width: 20%;" class="text-end pe-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for topic in subject.topics %}
+              <tr class="unit-table-row">
+                <td class="ps-3 fw-bold text-secondary">Unit {{ topic.unit_no }}</td>
+                <td class="fw-semibold text-dark">{{ topic.title }}</td>
+                <td><span class="badge bg-light text-dark border px-2 py-1">{{ topic.weightage }}% Marks</span></td>
+                <td class="text-end pe-3">
+                  <!-- Edit Button -->
+                  <button 
+                    type="button" 
+                    class="btn btn-outline-primary btn-sm rounded-pill px-2 py-0 me-1" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#editModal{{ topic.id }}"
+                  >
+                    ✏️ Edit
+                  </button>
+
+                  <!-- Delete Button -->
+                  <form action="{{ url_for('delete_topic', topic_id=topic.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete Unit {{ topic.unit_no }}?');">
+                    <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2 py-0">
+                      🗑️
+                    </button>
+                  </form>
+                </td>
+              </tr>
+
+              <!-- Edit Unit Modal for this row -->
+              <div class="modal fade" id="editModal{{ topic.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content rounded-4 border-0 shadow">
+                    <div class="modal-header border-0 pb-0">
+                      <h5 class="modal-title fw-bold">Edit Unit {{ topic.unit_no }}</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="{{ url_for('edit_topic', topic_id=topic.id) }}" method="POST">
+                      <div class="modal-body">
+                        <div class="row g-2 mb-3">
+                          <div class="col-4">
+                            <label class="form-label small fw-bold text-muted">Unit No</label>
+                            <input type="number" name="unit_no" class="form-control rounded-3" value="{{ topic.unit_no }}" required>
+                          </div>
+                          <div class="col-8">
+                            <label class="form-label small fw-bold text-muted">Weightage (%)</label>
+                            <input type="number" name="weightage" class="form-control rounded-3" value="{{ topic.weightage }}" required>
+                          </div>
+                        </div>
+                        <div class="mb-2">
+                          <label class="form-label small fw-bold text-muted">Unit Title</label>
+                          <input type="text" name="title" class="form-control rounded-3" value="{{ topic.title }}" required>
+                        </div>
+                      </div>
+                      <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-3 fw-semibold">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted small">No syllabus units found. Upload a syllabus PDF above or add units manually.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Uploaded Past Papers Table -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 pt-3 pb-2">
+      <h6 class="fw-bold mb-0 text-dark">📚 Available Past Exam Papers ({{ subject.exam_papers|length }})</h6>
+    </div>
+    <div class="card-body p-0">
+      {% if subject.exam_papers %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase text-muted">
+              <tr>
+                <th class="ps-3">Exam Session</th>
+                <th>Status</th>
+                <th>File Reference</th>
+                <th class="text-end pe-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in subject.exam_papers %}
+              <tr>
+                <td class="ps-3 fw-semibold text-dark">GTU {{ p.session_name }}</td>
+                <td>
+                  {% if p.paper_json %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Mock Ready</span>
+                  {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">PDF Only</span>
+                  {% endif %}
+                </td>
+                <td class="small text-muted text-truncate" style="max-width: 200px;">{{ p.pdf_filename }}</td>
+                <td class="text-end pe-3">
+                  {% if not p.paper_json %}
+                  <form action="{{ url_for('extract_mock_questions', paper_id=p.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill px-2 py-0 me-1">
+                      ⚡ Generate Mock
+                    </button>
+                  </form>
+                  {% endif %}
+                  <a href="{{ url_for('download_paper', paper_id=p.id) }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-0">
+                    View PDF
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted small">No question papers uploaded yet for this subject.</div>
+      {% endif %}
+    </div>
+  </div>
+
+
+<div class="card border-danger shadow-sm rounded-4 mb-4">
+    <div class="card-body d-flex justify-content-between align-items-center">
+      <div>
+        <h6 class="fw-bold text-danger mb-0">⚠️ Danger Zone</h6>
+        <small class="text-muted">Permanently delete this subject, all syllabus modules, uploaded papers, and notes.</small>
+      </div>
+      <form action="{{ url_for('admin_delete_subject', subject_id=subject.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to permanently delete {{ subject.name }}? This action cannot be undone.');">
+        <button type="submit" class="btn btn-danger btn-sm rounded-pill px-3 fw-bold">
+          Delete Subject
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+</div>
+
+<!-- Modal: Add Manual Unit -->
+<div class="modal fade" id="addManualUnitModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold">Add Syllabus Unit</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ url_for('add_manual_topic', subject_id=subject.id) }}" method="POST">
+        <div class="modal-body">
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label small fw-bold text-muted">Unit No</label>
+              <input type="number" name="unit_no" class="form-control rounded-3" placeholder="e.g. 1" required>
+            </div>
+            <div class="col-8">
+              <label class="form-label small fw-bold text-muted">Weightage (%)</label>
+              <input type="number" name="weightage" class="form-control rounded-3" placeholder="e.g. 15" required>
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-bold text-muted">Unit Title</label>
+            <input type="text" name="title" class="form-control rounded-3" placeholder="e.g., Dynamic Programming & Greedy Approaches" required>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-dark rounded-pill px-3 fw-semibold">Add Unit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
